@@ -1,5 +1,7 @@
+#!/usr/bin/env python
+# -*- coding: utf8 -*-
 #
-# Copyright (c) 2017 nexB Inc. and others. All rights reserved.
+# Copyright (c) 2015-2018 nexB Inc. and others. All rights reserved.
 # http://nexb.com and https://github.com/nexB/scancode-toolkit/
 # The ScanCode software is licensed under the Apache License version 2.0.
 # Data generated with ScanCode require an acknowledgment.
@@ -11,19 +13,10 @@
 # under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 # CONDITIONS OF ANY KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations under the License.
-#
-# When you publish or redistribute any data created with ScanCode or any ScanCode
-# derivative work, you must accompany this data with the following acknowledgment:
-#
-#  Generated with ScanCode and provided on an "AS IS" BASIS, WITHOUT WARRANTIES
-#  OR CONDITIONS OF ANY KIND, either express or implied. No content created from
-#  ScanCode should be considered or used as legal advice. Consult an Attorney
-#  for any legal advice.
-#  ScanCode is a free software code scanning tool from nexB Inc. and others.
-#  Visit https://github.com/nexB/scancode-toolkit/ for support and download.
 
 from __future__ import absolute_import
 from __future__ import print_function
+from __future__ import unicode_literals
 
 from collections import OrderedDict
 from functools import partial
@@ -37,16 +30,30 @@ except ImportError:
     from yaml import SafeLoader
     from yaml import SafeDumper
 
+try:
+    # Python 2
+    unicode
+except NameError:
+    # Python 3
+    unicode = str  # NOQA
+
+try:
+    # Python 2
+    basestring
+except NameError:
+    # Python 3
+    basestring = str  # NOQA
+
 """
-Wrapper around PyYAML to provide sane defaults ensuring that dump/load does not
-damage content, keeps ordering, use always block-style and use four spaces
-indents to get readable YAML and quotes and folds texts in a sane way.
+Wrapper around PyYAML to provide sane defaults ensuring that dump/load does
+not damage content, keeps ordering, use always block-style and use four
+spaces indents to get readable YAML and quotes and folds texts in a sane way.
 
 Use the `load` function to get a primitive type from a YAML string and the
 `dump` function to get a YAML string from a primitive type.
 
-Load and dump rely on subclasses of SafeLoader and SafeDumper respectively doing
-all the dirty bidding to get PyYAML straight.
+Load and dump rely on subclasses of SafeLoader and SafeDumper respectively
+doing all the dirty bidding to get PyYAML straight.
 """
 
 # Check:
@@ -68,14 +75,13 @@ def dump(obj):
     """
     Return a safe and sane YAML unicode string representation from `obj`.
     """
-    return yaml.dump(
-        obj,
+    kwargs = dict(
         Dumper=SaneDumper,
         default_flow_style=False,
         default_style=None,
         canonical=False,
         allow_unicode=True,
-        # do not encode as Unicode
+        # do not encode Unicode
         encoding=None,
         indent=4,
         width=90,
@@ -83,6 +89,7 @@ def dump(obj):
         explicit_start=False,
         explicit_end=False,
     )
+    return yaml.dump(obj, **kwargs)
 
 
 class SaneLoader(SafeLoader):
@@ -112,13 +119,11 @@ SaneLoader.add_constructor(u'tag:yaml.org,2002:str', string_loader)
 # in the loaded objects.
 
 SaneLoader.add_constructor(u'tag:yaml.org,2002:null', string_loader)
+SaneLoader.add_constructor(u'tag:yaml.org,2002:boolean', string_loader)
 SaneLoader.add_constructor(u'tag:yaml.org,2002:timestamp', string_loader)
 SaneLoader.add_constructor(u'tag:yaml.org,2002:float', string_loader)
 SaneLoader.add_constructor(u'tag:yaml.org,2002:int', string_loader)
 SaneLoader.add_constructor(u'tag:yaml.org,2002:null', string_loader)
-
-# keep  boolean conversion
-# SaneLoader.add_constructor(u'tag:yaml.org,2002:boolean', string_loader)
 
 
 def ordered_loader(loader, node):
@@ -144,8 +149,11 @@ SaneLoader.add_constructor(None, ordered_loader)
 
 
 class SaneDumper(SafeDumper):
+    """
+    Ensure that lists items are always indented.
+    """
 
-    def increase_indent(self, flow=False, indentless=False):
+    def increase_indent(self, flow=False, indentless=False):  # NOQA
         """
         Ensure that lists items are always indented.
         """
@@ -168,7 +176,7 @@ def ordered_dumper(dumper, data):
 SaneDumper.add_representer(OrderedDict, ordered_dumper)
 
 
-def null_dumper(dumper, value):
+def null_dumper(dumper, value):  # NOQA
     """
     Always dump nulls as empty string.
     """
@@ -180,8 +188,8 @@ SafeDumper.add_representer(type(None), null_dumper)
 
 def string_dumper(dumper, value, _tag=u'tag:yaml.org,2002:str'):
     """
-    Ensure that all scalars are dumped as UTF-8 unicode, folded and
-    quoted in the sanest and most readable way.
+    Ensure that all scalars are dumped as UTF-8 unicode, folded and quoted in
+    the sanest and most readable way.
     """
     if not isinstance(value, basestring):
         value = repr(value)
@@ -210,7 +218,7 @@ def boolean_dumper(dumper, value):
     """
     Dump booleans as yes or no strings.
     """
-    value = u'yes' if value else u'no'
+    value = u'yes' if value.lower() == 'yes' else u'no'
     style = None
     return dumper.represent_scalar(u'tag:yaml.org,2002:bool', value, style=style)
 
