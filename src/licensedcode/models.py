@@ -461,7 +461,8 @@ def build_rules_from_licenses(licenses):
             yield Rule(text_file=text_file,
                        license_expression=license_key,
                        minimum_coverage=minimum_coverage,
-                       is_license=True)
+                       is_license=True,
+                       importance=Rule.RULE_FULL_TEXT)
 
 
 def get_all_spdx_keys(licenses):
@@ -590,6 +591,19 @@ class Rule(object):
 
     # License expression object, created at build time
     license_expression_object = attr.ib(default=None)
+
+    # an indication of what this rule importance is (e.g. how important is its
+    # text when detected as a licensing clue): one of
+    # full-text for a license full text
+    RULE_FULL_TEXT = 'full-text'
+    # notice for a license notice
+    RULE_NOTICE = 'notice'
+    # mention for a mere short license mention
+    RULE_MENTION = 'mention'
+    # tag for a structured licensing tag such as a package manifest metadata or
+    # an SPDX identifier
+    RULE_TAG = 'tag'
+    importance = attr.ib(default=None)
 
     # is this rule text a false positive when matched? (filtered out) FIXME: this
     # should be unified with the relevance: a false positive match is a a match
@@ -850,7 +864,7 @@ class Rule(object):
 
     def to_dict(self):
         """
-        Return an OrderedDict of self, excluding texts. Used for serialization.
+        Return an dump of self, excluding texts. Used for serialization.
         Empty values are not included.
         """
         data = OrderedDict()
@@ -860,6 +874,8 @@ class Rule(object):
             data['false_positive'] = self.false_positive
         if self.negative:
             data['negative'] = self.negative
+        if self.importance:
+            data['importance'] = self.importance
         if self.has_stored_relevance:
             rl = self.relevance
             if int(rl) == rl:
@@ -876,10 +892,12 @@ class Rule(object):
 
     def dump(self):
         """
-        Dump a representation of self to tgt_dir as two files:
-         - a .yml for the rule data in YAML block format
-         - a .RULE: the rule text as a UTF-8 file
+        Dump a representation of this Rule in two files:
+         - a .yml for the rule data in YAML block format (self.data_file)
+         - a .RULE: the rule text as a UTF-8 file (self.text_file)
         """
+        if self.is_license:
+            return
         if self.data_file:
             as_yaml = saneyaml.dump(self.to_dict())
             with codecs.open(self.data_file, 'wb', encoding='utf-8') as df:
@@ -997,6 +1015,7 @@ class SpdxRule(Rule):
 
         self.license_expression = expression.render()
         self.license_expression_object = expression
+        self.importance = self.RULE_TAG
 
     def load(self):
         raise NotImplementedError
