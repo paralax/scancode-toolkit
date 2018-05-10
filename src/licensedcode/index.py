@@ -788,9 +788,7 @@ class LicenseIndex(object):
         """
         Return a pickled string of self.
         """
-        # here cPickle fails. Pickle is slower but works
-        import pickle
-        return pickle.dumps(self, protocol=cPickle.HIGHEST_PROTOCOL)
+        return cPickle.dumps(self, protocol=cPickle.HIGHEST_PROTOCOL)
 
     def renumber_token_ids(self, frequencies_by_old_tid,
                            _ranked_tokens=global_tokens_by_ranks,
